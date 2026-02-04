@@ -68,6 +68,30 @@ namespace noteapp.Controllers
             return Ok(notes);
         }
 
+        // ✅ Update note (only if belongs to logged in user)
+[HttpPut("{id}")]
+public IActionResult UpdateNote(int id, NoteCreateDto dto)
+{
+    int userId = GetUserId();
+
+    var note = _context.Notes.FirstOrDefault(n => n.Id == id && n.UserId == userId);
+
+    if (note == null)
+        return NotFound("Note not found or you are not owner");
+
+    note.Title = dto.Title;
+    note.Content = dto.Content;
+
+    _context.SaveChanges();
+
+    return Ok(new NoteDto
+    {
+        Id = note.Id,
+        Title = note.Title,
+        Content = note.Content
+    });
+}
+
         // ✅ Delete note (only if belongs to logged in user)
         [HttpDelete("{id}")]
         public IActionResult DeleteNote(int id)
