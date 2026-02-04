@@ -88,26 +88,40 @@ namespace noteapp.Controllers
         // 🔥 JWT Token Generator
         private string GenerateJwtToken(User user)
         {
-            var jwtSettings = _configuration.GetSection("Jwt");
+    var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+    var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
+    var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
+    var expireMinutes = Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES");
 
-            var claims = new List<Claim>
-            {
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Name),
-                new Claim(ClaimTypes.Email, user.Email)
-            };
+    if (string.IsNullOrEmpty(jwtKey))
+        throw new Exception("JWT_KEY missing in .env file");
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Key"]));
+    if (string.IsNullOrEmpty(jwtIssuer))
+        throw new Exception("JWT_ISSUER missing in .env file");
 
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+    if (string.IsNullOrEmpty(jwtAudience))
+        throw new Exception("JWT_AUDIENCE missing in .env file");
 
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.Now.AddMinutes(Convert.ToDouble(jwtSettings["ExpireMinutes"])),
-                signingCredentials: creds
-            );
+    if (string.IsNullOrEmpty(expireMinutes))
+        expireMinutes = "60"; // default fallback
+
+    var claims = new List<Claim>
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+        new Claim(ClaimTypes.Name, user.Name),
+        new Claim(ClaimTypes.Email, user.Email)
+    };
+
+    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+
+    var token = new JwtSecurityToken(
+        issuer: jwtIssuer,
+        audience: jwtAudience,
+        claims: claims,
+        expires: DateTime.Now.AddMinutes(Convert.ToDouble(expireMinutes)),
+        signingCredentials: creds
+    );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }

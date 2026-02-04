@@ -5,19 +5,40 @@ using Microsoft.OpenApi.Models;
 using noteapp.Data;
 using System.Text;
 using noteapp.Filters;
+using DotNetEnv;
+
 var builder = WebApplication.CreateBuilder(args);
+
+// ✅ Load .env file
+Env.Load();
+
+// ✅ Read env variables
+var dbConn = Environment.GetEnvironmentVariable("DB_CONNECTION");
+
+var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
+var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
+
+// ✅ Null check (IMPORTANT)
+if (string.IsNullOrEmpty(dbConn))
+    throw new Exception("DB_CONNECTION is missing in .env file");
+
+if (string.IsNullOrEmpty(jwtKey))
+    throw new Exception("JWT_KEY is missing in .env file");
+
+if (string.IsNullOrEmpty(jwtIssuer))
+    throw new Exception("JWT_ISSUER is missing in .env file");
+
+if (string.IsNullOrEmpty(jwtAudience))
+    throw new Exception("JWT_AUDIENCE is missing in .env file");
 
 // DB Connection
 builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseMySql(
-        builder.Configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(builder.Configuration.GetConnectionString("DefaultConnection"))
-    )
+    options.UseMySql(dbConn, ServerVersion.AutoDetect(dbConn))
 );
 
 // JWT Setup
-var jwtSettings = builder.Configuration.GetSection("Jwt");
-var key = Encoding.UTF8.GetBytes(jwtSettings["Key"]);
+var key = Encoding.UTF8.GetBytes(jwtKey);
 
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
@@ -29,8 +50,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
 
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidAudience = jwtSettings["Audience"],
+            ValidIssuer = jwtIssuer,
+            ValidAudience = jwtAudience,
 
             IssuerSigningKey = new SymmetricSecurityKey(key)
         };
@@ -41,7 +62,7 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 
-// ✅ Swagger JWT Setup
+// Swagger JWT Setup
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -60,16 +81,23 @@ builder.Services.AddSwaggerGen(c =>
         Description = "Enter JWT token like: Bearer {token}"
     });
 
-    // ✅ This will apply lock ONLY on [Authorize] endpoints
     c.OperationFilter<AuthorizeCheckOperationFilter>();
 });
+
 var app = builder.Build();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+// ✅ Swagger only in Development
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
 
-app.UseAuthentication();  // MUST
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
