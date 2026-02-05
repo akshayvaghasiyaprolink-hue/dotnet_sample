@@ -16,6 +16,10 @@ namespace noteapp.Models
         [Required]
         public string PasswordHash { get; set; }
 
+        // Role: admin, staff, user (default = user)
+        [Required]
+        public string Role { get; set; } = "user";
+
         public List<Note> Notes { get; set; } = new List<Note>();
     }
 }

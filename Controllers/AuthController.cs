@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -85,43 +86,73 @@ namespace noteapp.Controllers
             });
         }
 
+        [Authorize(Roles = "admin")]
+        [HttpGet("admin-data")]
+        public IActionResult AdminData()
+        {
+            return Ok("Only Admin can access this!");
+        }
+      
+        [Authorize(Roles = "user")]
+        [HttpGet("user-data")]
+        public IActionResult UserData()
+        {
+            return Ok("Only User can access this!");
+        }
+        
+        [Authorize(Roles = "staff")]
+        [HttpGet("staff-data")]
+        public IActionResult StaffData()
+        {
+            return Ok("Only Staff can access this!");
+        }
+        
+        [Authorize(Roles = "admin,staff")]
+        [HttpGet("admin-staff-data")]
+        public IActionResult AdminStaffData()
+        {
+            return Ok("Only Admin and Staff can access this!");
+        }
+
+
         // 🔥 JWT Token Generator
         private string GenerateJwtToken(User user)
         {
-    var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
-    var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
-    var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
-    var expireMinutes = Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES");
+            var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+            var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER");
+            var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE");
+            var expireMinutes = Environment.GetEnvironmentVariable("JWT_EXPIRE_MINUTES");
 
-    if (string.IsNullOrEmpty(jwtKey))
-        throw new Exception("JWT_KEY missing in .env file");
+            if (string.IsNullOrEmpty(jwtKey))
+                throw new Exception("JWT_KEY missing in .env file");
 
-    if (string.IsNullOrEmpty(jwtIssuer))
-        throw new Exception("JWT_ISSUER missing in .env file");
+            if (string.IsNullOrEmpty(jwtIssuer))
+                throw new Exception("JWT_ISSUER missing in .env file");
 
-    if (string.IsNullOrEmpty(jwtAudience))
-        throw new Exception("JWT_AUDIENCE missing in .env file");
+            if (string.IsNullOrEmpty(jwtAudience))
+                throw new Exception("JWT_AUDIENCE missing in .env file");
 
-    if (string.IsNullOrEmpty(expireMinutes))
-        expireMinutes = "60"; // default fallback
+            if (string.IsNullOrEmpty(expireMinutes))
+                expireMinutes = "60"; // default fallback
 
-    var claims = new List<Claim>
+            var claims = new List<Claim>
     {
         new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
         new Claim(ClaimTypes.Name, user.Name),
-        new Claim(ClaimTypes.Email, user.Email)
+        new Claim(ClaimTypes.Email, user.Email),
+        new Claim(ClaimTypes.Role, user.Role)
     };
 
-    var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
-    var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
-    var token = new JwtSecurityToken(
-        issuer: jwtIssuer,
-        audience: jwtAudience,
-        claims: claims,
-        expires: DateTime.Now.AddMinutes(Convert.ToDouble(expireMinutes)),
-        signingCredentials: creds
-    );
+            var token = new JwtSecurityToken(
+                issuer: jwtIssuer,
+                audience: jwtAudience,
+                claims: claims,
+                expires: DateTime.Now.AddMinutes(Convert.ToDouble(expireMinutes)),
+                signingCredentials: creds
+            );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
